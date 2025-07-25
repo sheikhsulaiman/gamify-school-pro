@@ -1,0 +1,327 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id
+  name          String    @db.Text
+  email         String
+  emailVerified Boolean
+  image         String?   @db.Text
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
+
+  role       String?    @db.Text
+  banned     Boolean?
+  banReason  String?    @db.Text
+  banExpires DateTime?
+  BlogPost   BlogPost[]
+  Course     Course[]
+
+  // Progress tracking relations
+  enrollments  CourseEnrollment[]
+  achievements UserAchievement[]
+
+  // Track user's most recent course
+  lastAccessedCourseId String?
+  lastAccessedCourse   Course? @relation("UserLastCourse", fields: [lastAccessedCourseId], references: [id])
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?  @db.Text
+  userAgent String?  @db.Text
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  impersonatedBy String? @db.Text
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @db.Text
+  providerId            String    @db.Text
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?   @db.Text
+  password              String?   @db.Text
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String    @db.Text
+  value      String    @db.Text
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model BlogPost {
+  id          String    @id @default(uuid())
+  title       String    @db.Text
+  slug        String    @unique @db.Text
+  content     String    @db.Text
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  tags Tag[] @relation("PostTags")
+}
+
+model Category {
+  id    String     @id @default(uuid())
+  name  String     @unique @db.Text
+  slug  String     @unique @db.Text
+  posts BlogPost[]
+}
+
+model Tag {
+  id    String     @id @default(uuid())
+  name  String     @unique @db.Text
+  posts BlogPost[] @relation("PostTags")
+}
+
+// SIMPLIFIED COURSE STRUCTURE
+model Course {
+  id            String   @id @default(uuid())
+  title         String   @db.Text
+  description   String?  @db.Text
+  createdBy     String   @db.Text
+  createdByUser User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Direct lessons in course
+  lessons Lesson[]
+
+  // Progress tracking relations
+  enrollments         CourseEnrollment[]
+  lastAccessedByUsers User[]             @relation("UserLastCourse")
+}
+
+model Lesson {
+  id          String  @id @default(uuid())
+  title       String  @db.Text
+  content     String  @db.Text
+  description String? @db.Text
+  courseId    String
+  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Lesson ordering and prerequisites
+  order          Int // Order within the course
+  isLocked       Boolean  @default(true)
+  prerequisiteId String? // ID of lesson that must be completed first
+  prerequisite   Lesson?  @relation("LessonPrerequisite", fields: [prerequisiteId], references: [id])
+  unlocks        Lesson[] @relation("LessonPrerequisite")
+
+  // XP and rewards for completing this lesson
+  xpReward Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Game modules (exercises, quizzes, etc.)
+  gameModules GameModule[]
+
+  // Progress tracking
+  progress         LessonProgress[]
+  CourseEnrollment CourseEnrollment[]
+
+  @@map("lesson")
+}
+
+model GameModule {
+  id       String   @id @default(uuid())
+  type     GameType
+  title    String   @db.Text
+  lessonId String
+  lesson   Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  // Ordering within lesson
+  order Int
+
+  // XP reward for completing this module
+  xpReward Int @default(0)
+
+  // Specific game type relations
+  rearrangeChallenge RearrangeChallenge?
+  mcq                MultipleChoiceQuestion?
+  matching           MatchingPairs?
+
+  // Progress tracking
+  progress GameProgress[]
+
+  @@map("game_module")
+}
+
+enum GameType {
+  REARRANGE
+  MCQ
+  MATCHING
+}
+
+model RearrangeChallenge {
+  id           String     @id @default(uuid())
+  prompt       String     @db.Text
+  items        String[] // e.g. ["step 1", "step 2", "step 3"]
+  correctOrder String[] // keys to match
+  gameId       String     @unique
+  module       GameModule @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("rearrange_challenge")
+}
+
+model MultipleChoiceQuestion {
+  id       String     @id @default(uuid())
+  question String     @db.Text
+  options  String[] // e.g. ["A", "B", "C", "D"]
+  correct  Int // index of correct option
+  gameId   String     @unique
+  module   GameModule @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("multiple_choice_question")
+}
+
+model MatchingPairs {
+  id           String     @id @default(uuid())
+  prompt       String     @db.Text
+  leftItems    String[] // e.g. ["猫", "犬", "鳥"]
+  rightItems   String[] // e.g. ["cat", "dog", "bird"]
+  correctPairs Json // e.g. { "猫": "cat", "犬": "dog" }
+  gameId       String     @unique
+  module       GameModule @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("matching_pairs")
+}
+
+// PROGRESS TRACKING MODELS
+
+// User enrollment in courses
+model CourseEnrollment {
+  id          String    @id @default(uuid())
+  userId      String
+  courseId    String
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+  isActive    Boolean   @default(true)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Current progress
+  currentLessonId String?
+  currentLesson   Lesson?  @relation(fields: [currentLessonId], references: [id])
+  totalXp         Int      @default(0)
+  streakDays      Int      @default(0)
+  lastActivityAt  DateTime @default(now())
+
+  // Progress tracking relations
+  lessonProgress LessonProgress[]
+  gameProgress   GameProgress[]
+
+  @@unique([userId, courseId])
+  @@map("course_enrollment")
+}
+
+// Track progress through individual lessons
+model LessonProgress {
+  id           String    @id @default(uuid())
+  enrollmentId String
+  lessonId     String
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  xpEarned     Int       @default(0)
+  attempts     Int       @default(0)
+
+  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson     Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, lessonId])
+  @@map("lesson_progress")
+}
+
+// Track progress through game modules (exercises, quizzes, etc.)
+model GameProgress {
+  id           String    @id @default(uuid())
+  enrollmentId String
+  gameId       String
+  completedAt  DateTime?
+  attempts     Int       @default(0)
+  bestScore    Int?
+  xpEarned     Int       @default(0)
+  timeSpent    Int       @default(0) // in seconds
+
+  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  game       GameModule       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, gameId])
+  @@map("game_progress")
+}
+
+// Achievement system
+model Achievement {
+  id          String  @id @default(uuid())
+  name        String  @db.Text
+  description String  @db.Text
+  icon        String? @db.Text
+  xpReward    Int     @default(0)
+
+  userAchievements UserAchievement[]
+
+  @@map("achievement")
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievement")
+}
