@@ -15,7 +15,7 @@ export async function GET() {
   return NextResponse.json(courseId, { status: 200 });
 }
 
-export async function POST(req: NextRequest) {
+export async function PATCH(req: NextRequest) {
   const session = await getSession();
   if (!session?.user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,6 +30,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const enrollments = await prisma.courseEnrollment.findMany({
+    where: { userId: session.user.id },
+    include: {
+      course: {
+        select: { id: true, title: true },
+      },
+    },
+  });
+
+  const isEnrolled = enrollments.some(
+    (enrollment) => enrollment.course.id === courseId
+  );
+
+  if (!isEnrolled) {
+    return NextResponse.json(
+      { message: "You are not enrolled in this course" },
+      { status: 403 }
+    );
+  }
+
   await prisma.user.update({
     where: { id: session.user.id },
     data: { lastAccessedCourseId: courseId },
@@ -37,6 +57,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     { message: "Course updated successfully" },
-    { status: 200 }
+    { status: 201 }
   );
 }

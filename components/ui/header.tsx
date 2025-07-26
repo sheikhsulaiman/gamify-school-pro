@@ -14,15 +14,9 @@ import { useState } from "react";
 import Link from "next/link";
 import AuthButton from "../auth-button";
 import { CourseToggle } from "../course-toggle";
+import NewEnroll from "../new-enroll";
 
-function Header({
-  courses,
-}: {
-  courses: {
-    id: string;
-    title: string;
-  }[];
-}) {
+function Header() {
   const navigationItems = [
     {
       title: "Home",
@@ -74,6 +68,11 @@ function Header({
       ],
     },
   ];
+
+  const handleSelect = (courseId: string) => {
+    // Handle course selection logic here
+    console.log("Selected course ID:", courseId);
+  };
 
   const [isOpen, setOpen] = useState(false);
   return (
@@ -133,7 +132,7 @@ function Header({
           <p className="font-semibold">TWBlocks</p>
         </div>
         <div className="flex justify-end w-full gap-4">
-          <CourseToggle courses={courses} />
+          <CourseToggle />
           <AuthButton />
         </div>
         <div className="flex w-12 shrink lg:hidden items-end justify-end">
