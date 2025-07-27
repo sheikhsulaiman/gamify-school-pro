@@ -6,7 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, RotateCcw, ArrowRight } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  RotateCcw,
+  ArrowRight,
+  Undo,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // Types
@@ -39,9 +45,7 @@ interface GameModule {
 
 interface GameEngineProps {
   modules: GameModule[];
-  onComplete?: (
-    results: { moduleId: string; correct: boolean; score: number }[]
-  ) => void;
+  onComplete?: () => void;
   onProgress?: (current: number, total: number) => void;
 }
 
@@ -81,7 +85,7 @@ const DraggableCard: React.FC<{
   return (
     <div
       ref={ref}
-      className={`p-3 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-move transition-all ${
+      className={`p-3 bg-white border-2 border-dashed rounded-lg cursor-move transition-all ${
         isDragging ? "opacity-50" : "opacity-100"
       } hover:border-blue-400`}
     >
@@ -533,7 +537,7 @@ const GameEngine: React.FC<GameEngineProps> = ({
     } else {
       setIsCompleted(true);
       if (onComplete) {
-        onComplete(results);
+        onComplete();
       }
     }
   };
@@ -549,6 +553,10 @@ const GameEngine: React.FC<GameEngineProps> = ({
       <Card className="w-full max-w-4xl mx-auto">
         <CardContent className="p-8 text-center">
           <p className="text-gray-600">No game modules available.</p>
+          <Button className="mt-4" onClick={() => router.back()}>
+            <Undo className="mr-2" />
+            Go back
+          </Button>
         </CardContent>
       </Card>
     );

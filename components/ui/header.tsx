@@ -71,7 +71,6 @@ function Header() {
 
   const handleSelect = (courseId: string) => {
     // Handle course selection logic here
-    console.log("Selected course ID:", courseId);
   };
 
   const [isOpen, setOpen] = useState(false);

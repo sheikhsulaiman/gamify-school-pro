@@ -14,6 +14,73 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import Link from "next/link";
+import { CourseToggle } from "@/components/course-toggle";
+import {
+  ActivityIcon,
+  FlameIcon,
+  PartyPopperIcon,
+  ZapIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// 4. Get user's course progress
+async function getUserCourseProgress(userId: string, courseId: string) {
+  const enrollment = await prisma.courseEnrollment.findUnique({
+    where: {
+      userId_courseId: { userId, courseId },
+    },
+    include: {
+      course: {
+        select: {
+          title: true,
+          lessons: {
+            select: { id: true, title: true, description: true, content: true },
+            orderBy: { order: "asc" },
+          },
+        },
+      },
+      currentLesson: {
+        select: { id: true, title: true, order: true },
+      },
+      lessonProgress: {
+        where: { completedAt: { not: null } },
+        select: { lessonId: true, xpEarned: true },
+      },
+    },
+  });
+
+  if (!enrollment) return null;
+
+  const totalLessons = enrollment.course.lessons.length;
+  const completedLessons = enrollment.lessonProgress.length;
+  const progressPercentage =
+    totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+
+  const lessons = enrollment.course.lessons.map((lesson) => ({
+    id: lesson.id,
+    title: lesson.title,
+    description: lesson.description,
+    content: lesson.content,
+    isCompleted: enrollment.lessonProgress.some(
+      (progress) => progress.lessonId === lesson.id
+    ),
+  }));
+
+  return {
+    courseTitle: enrollment.course.title,
+    currentLesson: enrollment.currentLesson,
+    progress: {
+      completed: completedLessons,
+      total: totalLessons,
+      percentage: Math.round(progressPercentage),
+    },
+    lessons,
+    totalXp: enrollment.totalXp,
+    streakDays: enrollment.streakDays,
+    lastActivity: enrollment.lastActivityAt,
+    isCompleted: !!enrollment.completedAt,
+  };
+}
 
 const page = async () => {
   const session = await getSession();
@@ -26,12 +93,12 @@ const page = async () => {
     );
   }
 
-  const courseId = await prisma.user.findUnique({
+  const course = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { lastAccessedCourseId: true },
   });
 
-  if (!courseId || !courseId.lastAccessedCourseId) {
+  if (!course || !course.lastAccessedCourseId) {
     return (
       <div className="container mx-auto p-4 max-w-3xl">
         <p>No course found for this user.</p>
@@ -39,55 +106,71 @@ const page = async () => {
       </div>
     );
   }
-  // Example: Get user's current progress in a course
-  const enrollment = await prisma.courseEnrollment.findUnique({
-    where: {
-      userId_courseId: {
-        userId: session.user.id,
-        courseId: courseId.lastAccessedCourseId,
-      },
-    },
-    include: {
-      currentLesson: true,
-      lessonProgress: {
-        where: { completedAt: { not: null } },
-      },
-    },
-  });
+  // // Example: Get user's current progress in a course
+  // const enrollment = await prisma.courseEnrollment.findUnique({
+  //   where: {
+  //     userId_courseId: {
+  //       userId: session.user.id,
+  //       courseId: courseId.lastAccessedCourseId,
+  //     },
+  //   },
+  //   include: {
+  //     course: {
+  //       select: {
+  //         title: true,
+  //         lessons: {
+  //           select: { id: true },
+  //           orderBy: { order: "asc" },
+  //         },
+  //       },
+  //     },
+  //     currentLesson: true,
+  //     lessonProgress: {
+  //       where: { completedAt: { not: null } },
+  //     },
+  //   },
+  // });
 
-  const lessons = await prisma.lesson.findMany({
-    where: { courseId: courseId.lastAccessedCourseId },
-    orderBy: { order: "asc" },
-    select: { id: true, title: true, description: true, content: true },
-  });
+  const progress = await getUserCourseProgress(
+    session.user.id,
+    course.lastAccessedCourseId
+  );
 
-  console.log("Enrollment Data:", enrollment);
   return (
-    <div className="container mx-auto p-4 max-w-3xl pt-24 min-h-screen">
-      {!enrollment ? (
+    <div className="container mx-auto p-4 max-w-3xl min-h-screen">
+      <MainNav />
+      {!progress ? (
         <div>
           <p>You are not enrolled in any course.</p>
         </div>
       ) : (
         <div className="relative">
-          <h1 className="text-2xl font-bold mb-4">Current Course Progress</h1>
-          <p>Course ID: {enrollment.courseId}</p>
-          <p>
-            Current Lesson:{" "}
-            {enrollment.currentLesson?.title || "No current lesson"}
-          </p>
-
           <div className="fixed bottom-12 mx-auto min-w-3xl place-content-center grid">
-            <div className="flex justify-between items-center bg-white p-2 overflow-auto shadow-md border-2 rounded-2xl">
-              {lessons.map((lesson, index) => (
+            <div className="flex justify-between items-center bg-white p-4 overflow-auto shadow-md border-2 rounded-2xl">
+              {progress.lessons.map((lesson, index) => (
                 <Dialog key={lesson.id}>
-                  <DialogTrigger asChild>
-                    <Button
-                      className="m-2 aspect-square min-w-24 min-h-24 text-2xl"
-                      variant="outline"
-                    >
-                      {++index}
-                    </Button>
+                  <DialogTrigger
+                    asChild
+                    disabled={progress.currentLesson?.id !== lesson.id}
+                  >
+                    {progress.currentLesson?.id === lesson.id ? (
+                      <Button
+                        key={lesson.id}
+                        className="m-2 aspect-square min-w-24 min-h-24 text-2xl"
+                        variant="rainbow"
+                      >
+                        {++index}
+                      </Button>
+                    ) : (
+                      <Button
+                        key={lesson.id}
+                        disabled
+                        className="m-2 aspect-square min-w-24 min-h-24 text-2xl"
+                        variant={lesson.isCompleted ? "passed" : "outline"}
+                      >
+                        {++index}
+                      </Button>
+                    )}
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -134,3 +217,66 @@ const page = async () => {
 };
 
 export default page;
+
+const MainNav = async () => {
+  const session = await getSession();
+
+  if (!session) {
+    return null;
+  }
+
+  const course = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { lastAccessedCourseId: true },
+  });
+  if (!course || !course.lastAccessedCourseId) {
+    return null;
+  }
+  const progress = await getUserCourseProgress(
+    session.user.id,
+    course.lastAccessedCourseId
+  );
+
+  return (
+    <header className="border rounded-full shadow-md px-4">
+      <nav className="w-full container mx-auto p-2 flex justify-between items-center">
+        <div>
+          <p className="p-2 border rounded-lg">Logo</p>
+        </div>
+        {progress && (
+          <div className="flex items-center justify-center gap-3">
+            {progress.isCompleted ? (
+              <div className="flex items-center justify-center gap-1 border py-1 px-2 rounded-lg">
+                <PartyPopperIcon />
+                <p className="font-bold text-2xl">Hurray! Completed.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-center gap-1 border py-1 px-2 rounded-lg">
+                  <FlameIcon
+                    className={cn(
+                      progress.streakDays > 0 &&
+                        progress.lastActivity.toDateString() ===
+                          new Date().toDateString() &&
+                        "text-red-500"
+                    )}
+                  />
+                  <p className="font-bold text-2xl">{progress.streakDays}</p>
+                </div>
+                <div className="flex items-center justify-center gap-1 border py-1 px-2 rounded-lg">
+                  <ZapIcon
+                    className={cn(progress.totalXp > 0 && "text-green-500")}
+                  />
+                  <p className="font-bold text-2xl">{progress.totalXp}</p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <div>
+          <CourseToggle />
+        </div>
+      </nav>
+    </header>
+  );
+};

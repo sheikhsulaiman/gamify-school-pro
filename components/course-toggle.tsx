@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import NewEnroll from "./new-enroll";
 
@@ -21,6 +21,7 @@ interface NewEnrollProps {
 }
 
 export const CourseToggle = () => {
+  const router = useRouter();
   const path = usePathname();
   const [courses, setCourses] = useState<Course[]>([]);
   const [selected, setSelected] = useState("");
@@ -102,6 +103,7 @@ export const CourseToggle = () => {
     setSelected(value);
     // Then update the backend
     handleUpdateCourse(value);
+    router.refresh();
   };
 
   // Only render on /learn path

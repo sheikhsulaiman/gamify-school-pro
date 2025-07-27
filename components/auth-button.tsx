@@ -10,7 +10,6 @@ const AuthButton = () => {
   const session = useSession();
   const path = usePathname();
 
-  console.log(path);
   if (!session) {
     return (
       <div className="flex items-center justify-center gap-2">
