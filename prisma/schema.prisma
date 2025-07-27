@@ -144,7 +144,7 @@ model Course {
 model Lesson {
   id          String  @id @default(uuid())
   title       String  @db.Text
-  content     String  @db.Text
+  content     String? @db.Text
   description String? @db.Text
   courseId    String
   course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
