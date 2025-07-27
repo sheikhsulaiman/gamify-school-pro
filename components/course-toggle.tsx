@@ -16,10 +16,6 @@ interface Course {
   title: string;
 }
 
-interface NewEnrollProps {
-  onEnrollSuccess?: () => void;
-}
-
 export const CourseToggle = () => {
   const router = useRouter();
   const path = usePathname();

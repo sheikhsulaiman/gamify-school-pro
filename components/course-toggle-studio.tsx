@@ -11,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import NewEnroll from "./new-enroll";
 import { useSession } from "@/lib/auth-client";
+import CreateCourse from "./create-course";
 
 interface Course {
   id: string;
@@ -148,11 +149,7 @@ export const CourseToggleStudio = () => {
           )}
         </SelectContent>
       </Select>
-      <NewEnroll
-        onEnrollSuccess={() => {
-          fetchData();
-        }}
-      />
+      <CreateCourse onCreateSuccess={fetchData} />
     </div>
   );
 };

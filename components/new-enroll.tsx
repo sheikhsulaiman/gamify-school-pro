@@ -30,6 +30,7 @@ interface Course {
   id: string;
   title: string;
   description: string;
+  createdBy: string;
 }
 
 const NewEnroll = ({ onEnrollSuccess }: { onEnrollSuccess: () => void }) => {
