@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import CreateLesson from "@/components/create-lesson";
 import { Separator } from "@/components/ui/separator";
+import GameModules from "@/components/game-modules";
+import { Lesson } from "@/lib/generated/prisma";
 
 const getLessonsCreatedByUser = async (userId: string) => {
   return await prisma.lesson.findMany({
@@ -58,14 +60,14 @@ const page = async () => {
     );
   }
 
-  const lessons = await getLessonsOfLastVisitedCourse(
+  const lessons: Lesson[] = await getLessonsOfLastVisitedCourse(
     lastVisitedCourse?.lastAccessedCourseId
   );
 
   return (
-    <div className="container mx-auto p-4 max-w-3xl min-h-screen">
+    <div className="container mx-auto p-4 max-w-5xl min-h-screen">
       <MainNav />
-      <div className="flex justify-between items-center bg-white p-4 overflow-auto shadow-md border-2 rounded-2xl">
+      {/* <div className="flex justify-between items-center bg-white p-4 overflow-auto shadow-md border-2 rounded-2xl">
         {lessons.length > 0 ? (
           <div className="fixed bottom-12 mx-auto min-w-3xl place-content-center grid">
             <div className="flex justify-between items-center gap-2 shadow-md border-2 rounded-2xl">
@@ -94,7 +96,12 @@ const page = async () => {
         ) : (
           <p>No lessons found in the last visited course.</p>
         )}
-      </div>
+      </div> */}
+
+      <GameModules
+        lessons={lessons}
+        courseId={lastVisitedCourse.lastAccessedCourseId}
+      />
     </div>
   );
 };
