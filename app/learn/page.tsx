@@ -16,7 +16,6 @@ import {
 import Link from "next/link";
 import { CourseToggle } from "@/components/course-toggle";
 import {
-  ActivityIcon,
   FlameIcon,
   HeartIcon,
   InfinityIcon,
@@ -24,6 +23,7 @@ import {
   ZapIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NavUser } from "@/components/nav-user";
 
 // 4. Get user's course progress
 async function getUserCourseProgress(userId: string, courseId: string) {
@@ -227,6 +227,12 @@ const MainNav = async () => {
     return null;
   }
 
+  const user = {
+    name: session.user.name,
+    email: session.user.email,
+    avatar: session.user.image || "",
+  };
+
   const course = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { lastAccessedCourseId: true },
@@ -281,8 +287,9 @@ const MainNav = async () => {
             )}
           </div>
         )}
-        <div>
+        <div className="flex items-center justify-center gap-2">
           <CourseToggle />
+          <NavUser user={user} />
         </div>
       </nav>
     </header>

@@ -1,142 +1,74 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Define protected routes that require authentication
-const protectedRoutes = [
-  "/learn",
-  "/profile",
-  "/settings",
-  // Add more protected routes as needed
-];
+// Routes that require authentication
+const PROTECTED_ROUTES = ["/learn", "/profile", "/settings", "/dashboard"];
 
-// Define auth routes that should redirect authenticated users
-const authRoutes = [
-  "/sign-in",
-  "/sign-up",
-  "/forgot-password",
-  "/reset-password",
-];
+// Routes that redirect authenticated users (auth pages)
+const AUTH_ROUTES = ["/sign-in", "/sign-up"];
 
-// Define public routes that don't require authentication
-const publicRoutes = [
-  "/",
-  "/about",
-  "/contact",
-  "/api/health",
-  // Add more public routes as needed
-];
+// Check if user is authenticated by looking for session cookie
+function isAuthenticated(request: NextRequest): boolean {
+  // better-auth typically sets a session cookie
+  // Adjust the cookie name based on your better-auth configuration
+  const sessionCookie =
+    request.cookies.get("better-auth.session_token") ||
+    request.cookies.get("authjs.session-token") ||
+    request.cookies.get("session");
 
-export async function middleware(request: NextRequest) {
+  return !!sessionCookie?.value;
+}
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for static files, API routes, and Next.js internals
+  // Skip for static files and API routes
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/") ||
     pathname.includes(".") ||
-    pathname.startsWith("/favicon")
+    pathname === "/favicon.ico"
   ) {
     return NextResponse.next();
   }
 
-  try {
-    // Get session by calling better-auth API endpoint
-    const sessionResponse = await fetch(
-      new URL("/api/auth/get-session", request.url),
-      {
-        method: "GET",
-        headers: {
-          cookie: request.headers.get("cookie") || "",
-        },
-      }
-    );
+  const authenticated = isAuthenticated(request);
 
-    let session = null;
-    let user = null;
+  // Check if current path is protected
+  const isProtectedPath = PROTECTED_ROUTES.some((route) =>
+    pathname.startsWith(route)
+  );
 
-    if (sessionResponse.ok) {
-      const sessionData = await sessionResponse.json();
-      session = sessionData.session;
-      user = sessionData.user;
-    }
+  // Check if current path is an auth route
+  const isAuthPath = AUTH_ROUTES.some((route) => pathname.startsWith(route));
 
-    const isAuthenticated = !!session && !!user;
-
-    // Check if route is public
-    const isPublicRoute = publicRoutes.some(
-      (route) => pathname === route || pathname.startsWith(route + "/")
-    );
-
-    // Check if route is protected
-    const isProtectedRoute = protectedRoutes.some(
-      (route) => pathname === route || pathname.startsWith(route + "/")
-    );
-
-    // Check if route is auth-related
-    const isAuthRoute = authRoutes.some(
-      (route) => pathname === route || pathname.startsWith(route + "/")
-    );
-
-    // Handle auth routes (sign-in, sign-up, etc.)
-    if (isAuthRoute) {
-      if (isAuthenticated) {
-        // Redirect authenticated users away from auth pages
-        return NextResponse.redirect(new URL("/learn", request.url));
-      }
-      return NextResponse.next();
-    }
-
-    // Handle protected routes
-    if (isProtectedRoute) {
-      if (!isAuthenticated) {
-        // Store the attempted URL for redirect after login
-        const redirectUrl = new URL("/sign-in", request.url);
-        redirectUrl.searchParams.set("redirect", pathname);
-        return NextResponse.redirect(redirectUrl);
-      }
-    }
-
-    // Handle public routes
-    if (isPublicRoute) {
-      return NextResponse.next();
-    }
-
-    // Default behavior for unmatched routes
-    if (!isAuthenticated && !isPublicRoute) {
-      const redirectUrl = new URL("/sign-in", request.url);
-      redirectUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    return NextResponse.next();
-  } catch (error) {
-    console.error("Middleware error:", error);
-
-    // If there's an error getting the session, redirect to sign-in for protected routes
-    const isProtectedRoute = protectedRoutes.some(
-      (route) => pathname === route || pathname.startsWith(route + "/")
-    );
-
-    if (isProtectedRoute) {
-      const redirectUrl = new URL("/sign-in", request.url);
-      redirectUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    return NextResponse.next();
+  // Redirect unauthenticated users from protected routes
+  if (isProtectedPath && !authenticated) {
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(signInUrl);
   }
+
+  // Redirect authenticated users from auth routes
+  if (isAuthPath && authenticated) {
+    const redirectUrl =
+      request.nextUrl.searchParams.get("callbackUrl") || "/learn";
+    return NextResponse.redirect(new URL(redirectUrl, request.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * Match all request paths except:
+     * - api routes
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder files
+     * - favicon.ico
+     * - public files (images, etc.)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };
