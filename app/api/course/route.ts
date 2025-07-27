@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const courses = await prisma.course.findMany({
-    select: { id: true, title: true, description: true },
+    select: { id: true, title: true, description: true, createdBy: true },
   });
 
   return NextResponse.json(courses, { status: 200 });
