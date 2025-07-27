@@ -18,6 +18,8 @@ import { CourseToggle } from "@/components/course-toggle";
 import {
   ActivityIcon,
   FlameIcon,
+  HeartIcon,
+  InfinityIcon,
   PartyPopperIcon,
   ZapIcon,
 } from "lucide-react";
@@ -268,6 +270,12 @@ const MainNav = async () => {
                     className={cn(progress.totalXp > 0 && "text-green-500")}
                   />
                   <p className="font-bold text-2xl">{progress.totalXp}</p>
+                </div>
+                <div className="flex items-center justify-center gap-1 border py-1 px-2 rounded-lg">
+                  <HeartIcon
+                    className={cn(progress.totalXp > 0 && "text-red-500")}
+                  />
+                  <InfinityIcon className="text-green-500 text-2xl" />
                 </div>
               </>
             )}
