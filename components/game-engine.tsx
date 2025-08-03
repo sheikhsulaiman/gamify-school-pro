@@ -592,7 +592,13 @@ const GameEngine: React.FC<GameEngineProps> = ({
           >
             Play Again
           </Button>
-          <Button className="w-full" onClick={() => router.back()}>
+          <Button
+            className="w-full"
+            onClick={() => {
+              onComplete && onComplete();
+              router.back();
+            }}
+          >
             Continue
           </Button>
         </CardContent>

@@ -28,7 +28,12 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <div
+          className="bg-cover bg-center h-screen"
+          style={{ backgroundImage: "url('/images/bg.jpg')" }}
+        >
+          {children}
+        </div>
         <Toaster />
       </body>
     </html>

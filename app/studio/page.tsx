@@ -122,7 +122,7 @@ const MainNav = async () => {
   };
 
   return (
-    <header className="border rounded-full shadow-md px-4">
+    <header className="sticky top-4 z-10 bg-background border rounded-full shadow-md px-4">
       <nav className="w-full container mx-auto p-2 flex justify-between items-center">
         <div>
           <p className="p-2 border rounded-lg">Logo</p>

@@ -102,9 +102,8 @@ const page = async () => {
 
   if (!course || !course.lastAccessedCourseId) {
     return (
-      <div className="container mx-auto p-4 max-w-3xl">
-        <p>No course found for this user.</p>
-        <SignOutButton />
+      <div className="container mx-auto p-4 max-w-3xl min-h-screen">
+        <MainNav />
       </div>
     );
   }
@@ -238,7 +237,20 @@ const MainNav = async () => {
     select: { lastAccessedCourseId: true },
   });
   if (!course || !course.lastAccessedCourseId) {
-    return null;
+    return (
+      <header className="border rounded-full shadow-md px-4">
+        <nav className="w-full container mx-auto p-2 flex justify-between items-center">
+          <div>
+            <p className="p-2 border rounded-lg">Logo</p>
+          </div>
+
+          <div className="flex items-center justify-center gap-2">
+            <CourseToggle />
+            <NavUser user={user} />
+          </div>
+        </nav>
+      </header>
+    );
   }
   const progress = await getUserCourseProgress(
     session.user.id,

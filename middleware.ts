@@ -7,14 +7,13 @@ const PROTECTED_ROUTES = ["/learn", "/profile", "/settings", "/studio"];
 // Routes that redirect authenticated users (auth pages)
 const AUTH_ROUTES = ["/sign-in", "/sign-up"];
 
-// Check if user is authenticated by looking for session cookie
+// Check if user is authenticated by looking for better-auth session cookie
 function isAuthenticated(request: NextRequest): boolean {
-  // better-auth typically sets a session cookie
-  // Adjust the cookie name based on your better-auth configuration
+  // Better-auth uses these cookie names by default
   const sessionCookie =
     request.cookies.get("better-auth.session_token") ||
-    request.cookies.get("authjs.session-token") ||
-    request.cookies.get("session");
+    request.cookies.get("session") ||
+    request.cookies.get("auth-session");
 
   return !!sessionCookie?.value;
 }

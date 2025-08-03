@@ -52,7 +52,7 @@ const MyLearningPage = () => {
 
   const handleGameComplete = () => {
     // Send results to your API
-    fetch(`/api/complete-lesson?`, {
+    fetch(`/api/complete-lesson`, {
       method: "PATCH",
       credentials: "include",
       body: JSON.stringify({

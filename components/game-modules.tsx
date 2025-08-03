@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "./ui/badge";
 import { CheckCircle, RotateCcw, XCircle } from "lucide-react";
 import { HTML5Backend } from "react-dnd-html5-backend";
+import GameModuleForms from "./game-module-forms";
 
 interface GameModule {
   id: string;
@@ -50,6 +51,8 @@ const GameModules = ({
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(
     lessons[0] || null
   );
+
+  const [showCreateModule, setShowCreateModule] = useState(false);
 
   const [gameModules, setGameModules] = useState<GameModule[] | null>(null);
   const [selectedModule, setSelectedModule] = useState<GameModule | null>(
@@ -90,9 +93,21 @@ const GameModules = ({
       ) : (
         <div className="grid grid-cols-12 gap-4 relative w-full">
           <div className="sticky top-0 col-span-6 md:col-span-3 flex items-stretch gap-2 flex-col border-r pr-4">
+            <h2 className="text-sm border-b font-semibold text-center text-muted-foreground">
+              Game Modules
+            </h2>
+            <Button
+              variant="default"
+              onClick={() => setShowCreateModule(!showCreateModule)}
+            >
+              {showCreateModule ? "Hide Form" : "Create Module"}
+            </Button>
             {gameModules?.map((module, index) => (
               <div
-                onClick={() => setSelectedModule(module)}
+                onClick={() => {
+                  setSelectedModule(module);
+                  setShowCreateModule(false);
+                }}
                 key={module.id}
                 className={cn(
                   "flex gap-1 min-h-12 overflow-hidden",
@@ -109,7 +124,9 @@ const GameModules = ({
             ))}
           </div>
           <div className="col-span-6 md:col-span-9">
-            <div className="w-full bg-red-500 h-12"></div>
+            {showCreateModule && (
+              <GameModuleForms lessonId={selectedLesson?.id} />
+            )}
             <div className="w-full min-h-36 grid place-content-center">
               {gameModules && gameModules?.length <= 0 && (
                 <p className="text-red-400">No game module yes! Create one.</p>

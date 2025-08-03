@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/server";
 
-// Helper function to calculate streak days
-async function calculateStreakDays(enrollmentId: string): Promise<number> {
+// Calculate streak based on lesson completion dates
+async function calculateUpdatedStreak(enrollmentId: string): Promise<number> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
 
   // Get all completed lessons ordered by completion date (most recent first)
   const completedLessons = await prisma.lessonProgress.findMany({
@@ -20,9 +17,9 @@ async function calculateStreakDays(enrollmentId: string): Promise<number> {
     select: { completedAt: true },
   });
 
-  if (completedLessons.length === 0) return 1; // First lesson completed today
+  if (completedLessons.length === 0) return 1; // First lesson completed
 
-  // Group completions by date
+  // Group completions by date (ignoring time)
   const completionDates = new Set<string>();
   completedLessons.forEach((lesson) => {
     if (lesson.completedAt) {
@@ -32,55 +29,62 @@ async function calculateStreakDays(enrollmentId: string): Promise<number> {
     }
   });
 
+  // Convert to sorted array (most recent first)
   const sortedDates = Array.from(completionDates).sort().reverse();
 
   let streakDays = 0;
   const todayStr = today.toISOString().split("T")[0];
 
-  // Check if user completed something today
+  // Always start counting from today if there's activity today
   if (sortedDates.includes(todayStr)) {
     streakDays = 1;
 
     // Count consecutive days backwards from today
-    let currentDate = new Date(today);
-    for (let i = 1; i < sortedDates.length; i++) {
-      currentDate.setDate(currentDate.getDate() - 1);
-      const expectedDateStr = currentDate.toISOString().split("T")[0];
+    let checkDate = new Date(today);
+    let dateIndex = 1; // Start from the next date in our sorted array
+
+    while (dateIndex < sortedDates.length) {
+      checkDate.setDate(checkDate.getDate() - 1);
+      const expectedDateStr = checkDate.toISOString().split("T")[0];
 
       if (sortedDates.includes(expectedDateStr)) {
         streakDays++;
+        dateIndex++;
       } else {
         break; // Streak is broken
       }
     }
+  } else {
+    // No activity today, check if we should continue existing streak
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    if (sortedDates.includes(yesterdayStr)) {
+      // Had activity yesterday, start streak from yesterday
+      streakDays = 1;
+
+      let checkDate = new Date(yesterday);
+      let dateIndex = 1;
+
+      while (dateIndex < sortedDates.length) {
+        checkDate.setDate(checkDate.getDate() - 1);
+        const expectedDateStr = checkDate.toISOString().split("T")[0];
+
+        if (sortedDates.includes(expectedDateStr)) {
+          streakDays++;
+          dateIndex++;
+        } else {
+          break;
+        }
+      }
+    } else {
+      // No recent activity, streak would be broken
+      streakDays = 0;
+    }
   }
 
-  return streakDays;
-}
-
-// Alternative simpler approach - just increment if last activity was yesterday
-async function calculateSimpleStreak(enrollment: any): Promise<number> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const lastActivity = new Date(enrollment.lastActivityAt);
-  lastActivity.setHours(0, 0, 0, 0);
-
-  // If last activity was yesterday, increment streak
-  if (lastActivity.getTime() === yesterday.getTime()) {
-    return enrollment.streakDays + 1;
-  }
-  // If last activity was today, keep current streak
-  else if (lastActivity.getTime() === today.getTime()) {
-    return enrollment.streakDays;
-  }
-  // If last activity was more than 1 day ago, reset streak
-  else {
-    return 1;
-  }
+  return Math.max(1, streakDays); // Minimum streak is 1 when completing a lesson
 }
 
 export async function PATCH(req: NextRequest) {
@@ -142,7 +146,7 @@ export async function PATCH(req: NextRequest) {
     },
   });
 
-  const newStreakDays = await calculateSimpleStreak(enrollment);
+  const newStreakDays = await calculateUpdatedStreak(enrollment.id);
 
   // Update total XP and streakDays
   await prisma.courseEnrollment.update({
